@@ -213,7 +213,7 @@ const postMat = new THREE.ShaderMaterial({
     vec2 px=1.0/uRes;
     vec3 m0=vec3(0.0),m1=vec3(0.0),m2=vec3(0.0),m3=vec3(0.0),s0=vec3(0.0),s1=vec3(0.0),s2=vec3(0.0),s3=vec3(0.0);
     for(int j=-2;j<=2;j++){ for(int i=-2;i<=2;i++){
-      vec3 c=texture2D(tD,vUv+vec2(float(i),float(j))*px*1.3).rgb; vec3 c2=c*c;
+      vec3 c=texture2D(tD,vUv+vec2(float(i),float(j))*px*1.0).rgb; vec3 c2=c*c;
       if(i<=0&&j<=0){m0+=c;s0+=c2;} if(i>=0&&j<=0){m1+=c;s1+=c2;}
       if(i>=0&&j>=0){m2+=c;s2+=c2;} if(i<=0&&j>=0){m3+=c;s3+=c2;}
     }}
@@ -222,6 +222,11 @@ const postMat = new THREE.ShaderMaterial({
     float a0=v0.r+v0.g+v0.b,a1=v1.r+v1.g+v1.b,a2=v2.r+v2.g+v2.b,a3=v3.r+v3.g+v3.b;
     vec3 col=m0; float mv=a0;
     if(a1<mv){mv=a1;col=m1;} if(a2<mv){mv=a2;col=m2;} if(a3<mv){col=m3;}
+    vec3 W3=vec3(0.299,0.587,0.114);
+    float lL=dot(texture2D(tD,vUv-vec2(px.x*1.5,0.0)).rgb,W3), lR=dot(texture2D(tD,vUv+vec2(px.x*1.5,0.0)).rgb,W3);
+    float lD=dot(texture2D(tD,vUv-vec2(0.0,px.y*1.5)).rgb,W3), lU=dot(texture2D(tD,vUv+vec2(0.0,px.y*1.5)).rgb,W3);
+    float edge=length(vec2(lR-lL,lU-lD));
+    col*=1.0-smoothstep(0.10,0.32,edge)*0.5;
     float g=fract(sin(dot(floor(vUv*uRes*0.5),vec2(12.9898,78.233)))*43758.5453);
     col*=0.97+0.06*g;
     vec2 q=vUv-0.5; col*=1.0-dot(q,q)*0.55;
@@ -247,11 +252,17 @@ function canvasTex(w, h, draw, repeat) { const c = document.createElement('canva
 let seed = 7; const rnd = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 const strokeTex = canvasTex(512, 512, (g, W) => {
   g.fillStyle = 'rgb(128,128,128)'; g.fillRect(0, 0, W, W); g.lineCap = 'round';
-  for (let i = 0; i < 2600; i++) {
-    const x = rnd() * W, y = rnd() * W, a = (rnd() - 0.5) * 0.9 + (rnd() < 0.25 ? Math.PI / 2 : 0), L = 10 + rnd() * 26;
-    const r = 60 + rnd() * 150 | 0, gg = 60 + rnd() * 150 | 0, b = rnd() < 0.5 ? 40 + rnd() * 60 | 0 : 170 + rnd() * 80 | 0;
-    g.strokeStyle = `rgb(${r},${gg},${b})`; g.lineWidth = 4 + rnd() * 6;
-    for (const ox of [-W, 0, W]) for (const oy of [-W, 0, W]) { g.beginPath(); g.moveTo(x + ox, y + oy); g.lineTo(x + ox + Math.cos(a) * L, y + oy + Math.sin(a) * L); g.stroke(); }
+  const stroke = (x, y, a, L, w, r, gg, b) => {
+    const bend = (rnd() - 0.5) * L * 0.35, cx = Math.cos(a), sy = Math.sin(a), nx = -sy, ny = cx;
+    for (const ox of [-W, 0, W]) for (const oy of [-W, 0, W]) {
+      const x0 = x + ox, y0 = y + oy, x1 = x0 + cx * L, y1 = y0 + sy * L, mx = (x0 + x1) / 2 + nx * bend, my = (y0 + y1) / 2 + ny * bend;
+      g.strokeStyle = `rgb(${r},${gg},${b})`; g.lineWidth = w; g.beginPath(); g.moveTo(x0, y0); g.quadraticCurveTo(mx, my, x1, y1); g.stroke();
+      for (let k = 0; k < 4; k++) { const o = (k / 3 - 0.5) * w * 0.8, d = (rnd() - 0.5) * 70; g.strokeStyle = `rgb(${clamp(r + d, 0, 255) | 0},${clamp(gg + d, 0, 255) | 0},${clamp(b + d * 0.5, 0, 255) | 0})`; g.lineWidth = 1.2 + rnd() * 1.5; g.beginPath(); g.moveTo(x0 + nx * o, y0 + ny * o); g.quadraticCurveTo(mx + nx * o, my + ny * o, x1 + nx * o, y1 + ny * o); g.stroke(); }
+    }
+  };
+  for (let i = 0; i < 1500; i++) {
+    const a = (rnd() - 0.5) * 0.7 + (rnd() < 0.22 ? Math.PI / 2 : 0);
+    stroke(rnd() * W, rnd() * W, a, 22 + rnd() * 46, 7 + rnd() * 9, 40 + rnd() * 190 | 0, 40 + rnd() * 190 | 0, rnd() < 0.5 ? 30 + rnd() * 60 | 0 : 170 + rnd() * 85 | 0);
   }
 }, true);
 const cobTex = canvasTex(512, 512, (g, W) => {
@@ -313,9 +324,11 @@ void main(){
   vec3 base=uVC>0.5?pow(max(vC,vec3(0.0)),vec3(0.4545)):uBase;
   vec3 an=abs(n); vec2 uv;
   if(an.y>0.7) uv=vW.xz; else if(an.x>an.z) uv=vec2(vW.z,vW.y); else uv=vec2(vW.x,vW.y);
-  vec4 s1=texture2D(uStroke,uv*uScale*0.16);
-  vec4 s2=texture2D(uStroke,uv.yx*uScale*0.10+0.37);
-  float lum=s1.r*0.65+s2.g*0.35;
+  float rot=fract(sin(dot(floor(n*3.0+0.5),vec3(12.9,78.2,37.7)))*437.5)*1.2-0.6;
+  vec2 ruv=vec2(cos(rot)*uv.x-sin(rot)*uv.y, sin(rot)*uv.x+cos(rot)*uv.y);
+  vec4 s1=texture2D(uStroke,ruv*uScale*0.12);
+  vec4 s2=texture2D(uStroke,ruv.yx*uScale*0.21+0.37);
+  float lum=s1.r*0.7+s2.g*0.3;
   if(uTerrain>0.5){
     float f=smoothstep(2.0,13.0,vW.y+(s2.r-0.5)*8.0);
     vec3 lo=mix(vec3(0.18,0.32,0.30),vec3(0.36,0.48,0.34),s1.g);
@@ -323,10 +336,12 @@ void main(){
     base=mix(lo,hi,f);
     base=mix(base,vec3(0.60,0.66,0.45),smoothstep(0.72,0.9,s2.b)*0.5);
   }
-  vec3 col=base*(0.72+0.56*lum);
-  col=mix(col,col*vec3(0.82,0.92,1.18)+vec3(0.02,0.03,0.07),smoothstep(0.62,0.9,s2.b)*0.55);
-  col=mix(col,col*vec3(1.14,1.04,0.84),smoothstep(0.66,0.95,s1.b)*0.45);
-  if(uCobble>0.5){ vec4 cb=texture2D(uCob,vW.xz*0.32); col=base*(0.45+0.85*cb.r)*(0.85+0.3*lum); }
+  vec3 col=base*(0.58+0.84*lum);
+  vec3 cool=base*vec3(0.72,0.84,1.22)+vec3(0.0,0.03,0.09);
+  vec3 wrm=base*vec3(1.22,1.06,0.78)+vec3(0.07,0.035,0.0);
+  col=mix(col,cool*(0.6+0.8*s1.g),smoothstep(0.55,0.8,s1.b)*0.65);
+  col=mix(col,wrm*(0.6+0.8*s2.r),smoothstep(0.62,0.88,s2.b)*0.55);
+  if(uCobble>0.5){ vec4 cb=texture2D(uCob,vW.xz*0.32); col=base*(0.55+0.55*cb.r)*(0.62+0.76*lum); col=mix(col,cool*(0.7+0.5*s1.g),smoothstep(0.6,0.85,s1.b)*0.5); }
   float dif=max(dot(n,normalize(uMoon)),0.0);
   vec3 light=vec3(0.32,0.40,0.66)*uAmb+vec3(0.50,0.58,0.85)*dif*0.42+vec3(0.08,0.10,0.18)*(n.y*0.5+0.5);
   vec3 warm=vec3(0.0);
@@ -419,6 +434,27 @@ vec2 flow(vec2 p, int si, vec3 st, out float sw, out float band){
   }
   return v;
 }
+const vec2 SA=vec2(2.0,1.279);
+vec2 spin(vec2 a, vec2 c, float R, float w, float tt){
+  vec2 q=a-c*SA; float r=length(q); float f=exp(-(r*r)/(R*R));
+  float ang=-w*tt*f*(1.25-0.5*min(r/R,1.0)); float cs=cos(ang), sn=sin(ang);
+  return vec2(cs*q.x-sn*q.y, sn*q.x+cs*q.y)-q;
+}
+vec2 swirlUV(vec2 uv, float tt){
+  vec2 a=uv*SA; vec2 d=vec2(0.0);
+  d+=spin(a,vec2(0.31,0.405),0.36,0.11,tt);
+  d+=spin(a,vec2(0.575,0.218),0.22,-0.14,tt);
+  d+=spin(a,vec2(0.875,0.70),0.24,0.05,tt);
+  d+=spin(a,vec2(0.115,0.11),0.13,0.12,tt);
+  d+=spin(a,vec2(0.60,0.61),0.09,0.16,tt);
+  d+=spin(a,vec2(0.465,0.85),0.09,-0.15,tt);
+  d+=spin(a,vec2(0.075,0.45),0.07,0.18,tt);
+  d+=spin(a,vec2(0.19,0.89),0.06,0.18,tt);
+  d+=spin(a,vec2(0.10,0.93),0.07,-0.16,tt);
+  float band=exp(-pow((uv.y-0.16-0.25*uv.x)/0.12,2.0))*smoothstep(0.45,0.7,uv.x);
+  d+=vec2(0.016,0.006)*tt*band;
+  return uv+d/SA;
+}
 vec3 ramp(float t){
   vec3 c0=vec3(0.05,0.11,0.33),c1=vec3(0.10,0.23,0.58),c2=vec3(0.22,0.40,0.74),c3=vec3(0.42,0.60,0.84),c4=vec3(0.68,0.82,0.86),c5=vec3(0.86,0.89,0.64);
   if(t<0.2) return mix(c0,c1,t/0.2);
@@ -484,9 +520,9 @@ void main(){
     float m=smoothstep(0.0,0.05,uv.x)*smoothstep(1.0,0.9,uv.x)*smoothstep(0.0,0.07,uv.y)*smoothstep(1.0,0.95,uv.y);
     m*=1.0-smoothstep(0.76,0.88,uv.x)*smoothstep(0.2,0.06,uv.y);
     if(m>0.0){
-      float sw,bd; vec2 fv=flow(p,si,sel,sw,bd); vec2 dir=normalize(fv+vec2(1e-4)); vec2 off=vec2(dir.x*0.5,dir.y*0.52)*0.012;
-      float ph=fract(uTime*(0.06+uBoost*0.3)); float w1=abs(ph*2.0-1.0);
-      vec3 ca=texture2D(uPaint,uv+off*(ph-0.5)).rgb, cb=texture2D(uPaint,uv+off*(fract(ph+0.5)-0.5)).rgb;
+      float T=5.0/(1.0+uBoost*2.0); float ph=fract(uTime/T); float w1=abs(ph*2.0-1.0);
+      vec3 ca=texture2D(uPaint,swirlUV(uv,(ph-0.5)*T)).rgb;
+      vec3 cb=texture2D(uPaint,swirlUV(uv,(fract(ph+0.5)-0.5)*T)).rgb;
       col=mix(col,mix(ca,cb,w1)*0.92,m);
     }
   }

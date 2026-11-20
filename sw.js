@@ -1,4 +1,4 @@
-const CACHE = 'amanecer-v3';
+const CACHE = 'amanecer-v4';
 const CORE = ['./', './index.html', './manifest.json', './cover.jpg', './icon-192.png', './icon-512.png', './village.glb', './layout.json', './sky.jpg',
   'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js',
   'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js'];
