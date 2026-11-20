@@ -4,6 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Antes del amanecer</title>
+<meta name="description" content="Una noche adentro de La noche estrellada de Van Gogh. Llegá a la estrella de la mañana antes del amanecer.">
+<meta name="theme-color" content="#0b1640">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta property="og:title" content="Antes del amanecer">
+<meta property="og:description" content="Una noche adentro de La noche estrellada de Van Gogh.">
+<meta property="og:image" content="https://robertozapata-has.github.io/antes-del-amanecer/cover.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Caveat+Brush&family=Alegreya+Sans:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
@@ -54,6 +64,17 @@ h1{font-family:'Caveat Brush',cursive;font-weight:400;font-size:clamp(46px,12vw,
 #veil.white{background:#fff6dc;filter:none;animation:none}
 #veil.dark{background:#03061a;filter:none;animation:none}
 @keyframes spin{to{transform:rotate(360deg)}}
+#cover{display:block;max-height:min(58vh,640px);max-width:100%;width:auto;margin:0 auto 22px;border-radius:18px;box-shadow:0 18px 60px rgba(0,0,0,.55),0 0 0 1px rgba(255,212,90,.35)}
+#cover[hidden]{display:none}
+#title.has-cover h1,#title.has-cover .sub{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.ghost{min-height:52px;padding:0 24px;border-radius:26px;border:1px solid rgba(255,212,90,.7);background:rgba(9,20,62,.6);color:var(--yel);font:700 17px 'Alegreya Sans',sans-serif;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.ghost[hidden]{display:none}
+#help{position:fixed;inset:0;display:grid;place-items:end center;background:rgba(3,7,24,.6);padding:16px;z-index:5}
+#help[hidden]{display:none}
+#help>div{width:min(520px,100%);background:linear-gradient(180deg,#14286c,#08123a);border:1px solid rgba(255,212,90,.5);border-radius:18px;padding:18px 20px calc(env(safe-area-inset-bottom) + 16px);text-align:left}
+#help h2{font-family:'Caveat Brush',cursive;font-weight:400;color:var(--yel);font-size:28px;margin:0 0 6px}
+#help ol{margin:8px 0 14px;padding-left:22px}#help li{margin:4px 0}
 #err{position:fixed;inset:0;display:none;place-items:center;padding:30px;text-align:center;background:#081233}
 @media (prefers-reduced-motion:reduce){#veil.on{animation:none}.ico{animation:none}}
 </style>
@@ -80,9 +101,11 @@ h1{font-family:'Caveat Brush',cursive;font-weight:400;font-size:clamp(46px,12vw,
 
 <div id="title" class="screen">
   <div>
+    <img id="cover" src="cover.jpg" alt="Portada: Antes del amanecer, una noche adentro de La noche estrellada" hidden>
     <h1>Antes del amanecer</h1>
     <p class="sub">Una noche adentro de <i>La noche estrellada</i>, de Vincent van Gogh (1889)</p>
-    <button class="big" id="bStart">Entrar</button>
+    <div class="row"><button class="big" id="bStart">Entrar</button>
+    <button class="ghost" id="bInstall" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Instalar en el cel</button></div>
     <p class="small">Arrastrá para mirar, tocá el suelo para caminar y tocá las luces para hablar.<br>En el cel también podés mirar moviéndolo (botón del celular, arriba a la derecha).<br>Mejor con sonido.</p>
   </div>
 </div>
@@ -97,9 +120,42 @@ h1{font-family:'Caveat Brush',cursive;font-weight:400;font-size:clamp(46px,12vw,
   </div>
 </div>
 
+<div id="help" hidden role="dialog" aria-labelledby="helpT"><div>
+  <h2 id="helpT">Instalar en el cel</h2>
+  <p id="helpTxt"></p>
+  <ol id="helpSteps"></ol>
+  <div class="row" style="justify-content:flex-end"><button class="act" id="bHelpOk"><span>Entendido</span></button></div>
+</div></div>
 <div id="veil"></div>
 <div id="err"><div><h1>Uy</h1><p class="sub">Este navegador no pudo abrir la escena 3D. Probá con Chrome actualizado.</p></div></div>
 
+<script>
+{
+  const cover = document.getElementById('cover');
+  const showCover = () => { cover.hidden = false; document.getElementById('title').classList.add('has-cover'); };
+  if (cover.complete && cover.naturalWidth) showCover(); else cover.addEventListener('load', showCover);
+  const framed = (() => { try { return window.self !== window.top; } catch (_) { return true; } })();
+  const standalone = matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches || navigator.standalone === true;
+  const mobile = matchMedia('(pointer:coarse)').matches;
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const b = document.getElementById('bInstall'), help = document.getElementById('help');
+  let deferred = null;
+  if (!framed && !standalone && mobile) b.hidden = false;
+  addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; if (!framed && !standalone) b.hidden = false; });
+  addEventListener('appinstalled', () => { b.hidden = true; deferred = null; });
+  b.addEventListener('click', async () => {
+    if (deferred) { deferred.prompt(); try { await deferred.userChoice; } catch (_) {} deferred = null; return; }
+    document.getElementById('helpTxt').textContent = 'Tu navegador no muestra el botón automático, pero se instala igual en dos pasos:';
+    document.getElementById('helpSteps').innerHTML = ios
+      ? '<li>Tocá el botón <b>Compartir</b> de Safari (el cuadrado con la flecha hacia arriba).</li><li>Elegí <b>Agregar a inicio</b> y después <b>Agregar</b>.</li>'
+      : '<li>Abrí el menú del navegador (los tres puntitos, arriba o abajo).</li><li>Elegí <b>Instalar app</b> o <b>Agregar a pantalla de inicio</b>.</li>';
+    help.hidden = false; document.getElementById('bHelpOk').focus();
+  });
+  document.getElementById('bHelpOk').addEventListener('click', () => { help.hidden = true; });
+  help.addEventListener('click', e => { if (e.target === help) help.hidden = true; });
+  if ('serviceWorker' in navigator && !framed && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 {
