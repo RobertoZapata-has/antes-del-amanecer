@@ -564,7 +564,11 @@ const LIGHTS = []; // {x,y,z,i}
 async function loadVillage() {
   const [layout, gltf] = await Promise.all([
     fetch('layout.json').then(r => { if (!r.ok) throw new Error('layout'); return r.json(); }),
-    new Promise((res, rej) => new THREE.GLTFLoader().load('village.glb', res, undefined, rej))
+    new Promise((res, rej) => new THREE.GLTFLoader().load('village.glb', res, undefined, rej)).catch(() => new Promise((res, rej) => {
+      const sc = document.createElement('script'); sc.src = 'village.js';
+      sc.onload = () => { const bin = Uint8Array.from(atob(window.VILLAGE_GLB), c => c.charCodeAt(0)); new THREE.GLTFLoader().parse(bin.buffer, '', res, rej); };
+      sc.onerror = rej; document.head.appendChild(sc);
+    }))
   ]);
   L = layout;
   const byName = {}; gltf.scene.traverse(o => { if (o.isMesh) byName[o.name] = o; });
