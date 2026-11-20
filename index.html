@@ -392,7 +392,7 @@ float snoise(vec3 v){
   return 42.0*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
 }`;
 // estrellas en coordenadas del "lienzo" del cielo: (acimut, elevación*1.5, radio). La 0 es la estrella de la mañana; la 12 es la luna.
-const SKYP = [[-0.30, 0.62, 0.11], [-0.78, 0.98, 0.06], [-0.40, 1.30, 0.055], [0.02, 1.52, 0.06], [0.16, 0.56, 0.05], [0.50, 0.98, 0.06], [0.66, 1.42, 0.05], [0.36, 0.40, 0.045], [-0.10, 0.36, 0.04], [0.92, 0.68, 0.055], [-1.10, 0.62, 0.05], [1.05, 1.18, 0.05], [0.84, 1.12, 0.12]];
+const SKYP = [[-0.30, 0.36, 0.11], [-0.78, 0.98, 0.06], [-0.40, 1.30, 0.055], [0.02, 1.52, 0.06], [0.16, 0.56, 0.05], [0.50, 0.98, 0.06], [0.66, 1.42, 0.05], [0.36, 0.40, 0.045], [-0.10, 0.36, 0.04], [0.92, 0.68, 0.055], [-1.10, 0.62, 0.05], [1.05, 1.18, 0.05], [1.2, 1.5, 0.2]];
 const SKY_FS = NOISE + `
 uniform float uTime; uniform float uDawn; uniform float uBoost;
 uniform vec3 uSP[13];
@@ -407,8 +407,8 @@ vec2 flow(vec2 p, int si, vec3 st, out float sw, out float band){
   vec2 v=vec2(1.0,0.4*cos(p.x*3.0+0.6)*0.9+0.25*cos(p.x*6.5))*0.6;
   sw=0.0;
   float t=uTime*(0.02+uBoost*0.2);
-  vort(p,vec2(-0.08+sin(t)*0.01,1.00),1.0,0.32,v,sw);
-  vort(p,vec2(0.32,0.88),-0.9,0.24,v,sw);
+  vort(p,vec2(0.056+sin(t)*0.01,0.80),1.0,0.30,v,sw);
+  vort(p,vec2(0.55,0.51),-0.9,0.21,v,sw);
   vort(p,vec2(-0.58,1.30),0.6,0.18,v,sw);
   vort(p,vec2(2.5,0.9),0.8,0.35,v,sw);
   vort(p,vec2(-2.3,1.05),-0.7,0.3,v,sw);
@@ -480,13 +480,14 @@ void main(){
     if(zb>=0.0) col=mix(dc,dc*0.78,smoothstep(0.65,1.0,edge));
   }
   if(uHasPaint>0.5){
-    vec2 uv=vec2((az+1.05)/2.1*0.8+0.2, 1.0-(el-0.05)/0.75*0.62);
-    float m=smoothstep(-1.05,-0.85,az)*smoothstep(1.05,0.85,az)*smoothstep(0.03,0.1,el)*smoothstep(0.8,0.7,el);
+    vec2 uv=vec2((az+0.52)/2.0,(el-0.08)/1.279);
+    float m=smoothstep(0.0,0.05,uv.x)*smoothstep(1.0,0.9,uv.x)*smoothstep(0.0,0.07,uv.y)*smoothstep(1.0,0.95,uv.y);
+    m*=1.0-smoothstep(0.76,0.88,uv.x)*smoothstep(0.2,0.06,uv.y);
     if(m>0.0){
-      float sw,bd; vec2 fv=flow(p,si,sel,sw,bd); vec2 off=normalize(fv+vec2(1e-4))*0.004;
-      float ph=fract(uTime*0.08); float w1=abs(ph*2.0-1.0);
-      vec3 a=texture2D(uPaint,uv+off*(ph-0.5)).rgb, b=texture2D(uPaint,uv+off*(fract(ph+0.5)-0.5)).rgb;
-      col=mix(col,mix(a,b,w1),m);
+      float sw,bd; vec2 fv=flow(p,si,sel,sw,bd); vec2 dir=normalize(fv+vec2(1e-4)); vec2 off=vec2(dir.x*0.5,dir.y*0.52)*0.012;
+      float ph=fract(uTime*(0.06+uBoost*0.3)); float w1=abs(ph*2.0-1.0);
+      vec3 ca=texture2D(uPaint,uv+off*(ph-0.5)).rgb, cb=texture2D(uPaint,uv+off*(fract(ph+0.5)-0.5)).rgb;
+      col=mix(col,mix(ca,cb,w1)*0.92,m);
     }
   }
   float hl=0.025+0.025*sin(az*3.0+1.0)+0.015*sin(az*7.0);
@@ -752,12 +753,13 @@ function audioStart() {
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
     const src = actx.createBufferSource(); src.buffer = buf; src.loop = true;
     const bp = actx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 420; bp.Q.value = 0.7;
-    const wg = actx.createGain(); wg.gain.value = 0.06;
+    const wg = actx.createGain(); wg.gain.value = 0.045;
     const lfo = actx.createOscillator(); lfo.frequency.value = 0.07; const lg = actx.createGain(); lg.gain.value = 260; lfo.connect(lg); lg.connect(bp.frequency);
     src.connect(bp); bp.connect(wg); wg.connect(master); src.start(); lfo.start();
     const lp = actx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 800; lp.connect(master);
     [146.83, 220, 277.18, 329.63].forEach((f, i) => { const o = actx.createOscillator(); o.type = i % 2 ? 'triangle' : 'sine'; o.frequency.value = f; o.detune.value = (i - 1.5) * 4; const g = actx.createGain(); g.gain.value = 0.018; o.connect(g); g.connect(lp); o.start(); const l = actx.createOscillator(); l.frequency.value = 0.05 + i * 0.02; const lg2 = actx.createGain(); lg2.gain.value = 0.012; l.connect(lg2); lg2.connect(g.gain); l.start(); });
   } catch (e) { actx = null; }
+  musicStart();
 }
 function chime(f, delay = 0, dur = 1.6, vol = 0.14) {
   if (!actx || muted) return;
@@ -768,6 +770,43 @@ function chime(f, delay = 0, dur = 1.6, vol = 0.14) {
 }
 let stepT = 0;
 function footstep() { if (!actx || muted) return; const t = actx.currentTime, n = actx.createBufferSource(), len = actx.sampleRate * 0.06 | 0, b = actx.createBuffer(1, len, actx.sampleRate), d = b.getChannelData(0); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len) ** 3; n.buffer = b; const f = actx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 700 + Math.random() * 300; const g = actx.createGain(); g.gain.value = 0.12; n.connect(f); f.connect(g); g.connect(master); n.start(t); }
+/* música: vals lento de piano, original */
+const music = { bus: null, next: 0, step: 0, iv: 0 };
+const midi = m => 440 * Math.pow(2, (m - 69) / 12);
+function piano(m, t, dur, vel, dest) {
+  const f = midi(m), g = actx.createGain(), lp = actx.createBiquadFilter();
+  lp.type = 'lowpass'; lp.frequency.value = 1500 + m * 12;
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vel, t + 0.01); g.gain.exponentialRampToValueAtTime(vel * 0.32, t + 0.3); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  for (const [k, type, amp] of [[1, 'sine', 1], [2, 'sine', 0.26], [3, 'triangle', 0.05], [4.01, 'sine', 0.03]]) { const o = actx.createOscillator(), og = actx.createGain(); o.type = type; o.frequency.value = f * k; o.detune.value = (Math.random() - 0.5) * 5; og.gain.value = amp; o.connect(og); og.connect(lp); o.start(t); o.stop(t + dur + 0.05); }
+  lp.connect(g); g.connect(dest);
+}
+const BEAT = 60 / 64;
+const CH = [[45, 3], [41, 4], [48, 4], [43, 4], [45, 3], [41, 4], [50, 3], [40, 4], [41, 4], [43, 4], [40, 3], [45, 3], [50, 3], [43, 4], [48, 4], [40, 4]];
+const MEL = [[76, 0, 74], [72, 0, 69], [67, 72, 76], [74, 0, 0], [76, 77, 76], [72, 0, 69], [69, 72, 74], [71, 0, 68], [69, 72, 77], [79, 0, 77], [76, 0, 71], [72, 0, 69], [74, 72, 69], [71, 74, 79], [76, 0, 72], [71, 0, 0]];
+function musicStep(s, t) {
+  const bar = Math.floor(s / 6) % 16, e = s % 6, pass = Math.floor(s / 96) % 2, [root, third] = CH[bar];
+  const arp = [0, 7, 12, 12 + third, 12, 7][e];
+  piano(root + (bar === 6 || bar === 12 ? -12 : 0) + arp, t, BEAT * 1.8, e === 0 ? 0.07 : 0.04, music.bus);
+  if (e % 2 === 0) {
+    const bi = e / 2, n = MEL[bar][bi];
+    if (n) { let len = 1; for (let k = bi + 1; k < 3 && MEL[bar][k] === 0; k++) len++; piano(n + (pass ? 12 : 0), t, BEAT * (len + 1.2), (pass ? 0.06 : 0.085) * (0.85 + Math.random() * 0.3), music.bus); }
+  }
+}
+function musicStart() {
+  if (!actx || music.bus) return;
+  music.bus = actx.createGain(); music.bus.gain.value = 0;
+  const conv = actx.createConvolver(), len = actx.sampleRate * 2.8, ir = actx.createBuffer(2, len, actx.sampleRate);
+  for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6); }
+  conv.buffer = ir; const wet = actx.createGain(); wet.gain.value = 0.38; const dry = actx.createGain(); dry.gain.value = 0.8;
+  music.bus.connect(dry); dry.connect(master); music.bus.connect(conv); conv.connect(wet); wet.connect(master);
+  music.bus.gain.linearRampToValueAtTime(0.55, actx.currentTime + 4);
+  music.next = actx.currentTime + 0.3;
+  music.iv = setInterval(() => {
+    if (music.next < actx.currentTime - 0.5) music.next = actx.currentTime + 0.05;
+    while (music.next < actx.currentTime + 0.3) { musicStep(music.step, music.next); music.next += BEAT / 2; music.step = (music.step + 1) % 192; }
+  }, 60);
+}
+function musicVol(v, secs = 2) { if (!music.bus) return; const g = music.bus.gain, t = actx.currentTime; g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(v, t + secs); }
 const SONG = [392, 330, 392, 440, 392, 330, 294, 330, 392, 330, 294, 262];
 const playSong = (sp = 0.42) => SONG.forEach((f, i) => chime(f, i * sp, 1.4, 0.13));
 $('#bSnd').onclick = e => { e.stopPropagation(); muted = !muted; e.currentTarget.setAttribute('aria-pressed', !muted); $('#sndW').style.display = muted ? 'none' : ''; if (master) master.gain.value = muted ? 0 : 0.9; };
@@ -1005,7 +1044,7 @@ async function flight() {
     new THREE.Vector3(4, 30, 84), new THREE.Vector3(-4, 38, 96), new THREE.Vector3(-16, 44, 90), new THREE.Vector3(-12, top.y + 6, 78),
     top.clone().add(VENUS.clone().multiplyScalar(60)), top.clone().add(VENUS.clone().multiplyScalar(220))];
   const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
-  playSong(0.36);
+  playSong(0.36); musicVol(0.8, 3);
   const look = new THREE.Vector3(), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), t1 = new THREE.Vector3(), t2 = new THREE.Vector3(); let roll = 0;
   await tween(17000, k => {
     U.boost.value = Math.sin(k * Math.PI);
@@ -1039,14 +1078,14 @@ async function ending() {
   RP.set(0.2, 1.6, 0.6);
   const ec = easelCanvas.getWorldPosition(new THREE.Vector3());
   camera.position.copy(RP); camera.lookAt(ec); gyro.on = false; $('#bGyro').setAttribute('aria-pressed', 'false');
-  await veilOff();
+  await veilOff(); musicVol(0.0, 8);
   [392, 494, 587, 784].forEach((f, i) => chime(f, i * 0.3, 2.5, .1));
   await say(['Volviste al cuarto. Afuera amanece.', 'En el atril, el cuadro está terminado. La iglesia, otra vez a oscuras, como él la pintó.', 'Pero en el campanario, si mirás bien, queda una luz chiquita: el farol que dejaste.']);
   $('#endT').textContent = 'Fin'; $('#endS').innerHTML = 'Llegaste a la estrella antes del amanecer.';
   $('#endQ').style.display = ''; $('#end').classList.remove('hide');
 }
 async function fail() {
-  busy = true; phase = 'fail'; walk = null;
+  busy = true; phase = 'fail'; walk = null; musicVol(0.15, 4);
   await say(['Amaneció. La estrella de la mañana se apagó, y con ella la ventana.']);
   $('#hud').classList.add('off');
   $('#endT').textContent = 'Amaneció'; $('#endS').innerHTML = 'Pero cada noche, en algún lado, alguien vuelve a mirar este cuadro.';
@@ -1055,7 +1094,7 @@ async function fail() {
 $('#bAgain').onclick = async () => {
   $('#end').classList.add('hide'); await veilOn('dark');
   for (let i = LIGHTS.length - 1; i >= 0; i--) if (LIGHTS[i].church) LIGHTS.splice(i, 1);
-  resetState(); phase = 'room'; busy = true; await veilOff(); roomIntro();
+  resetState(); phase = 'room'; busy = true; musicVol(0.55, 4); await veilOff(); roomIntro();
 };
 
 async function roomIntro() {

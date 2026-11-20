@@ -1,5 +1,5 @@
-const CACHE = 'amanecer-v2';
-const CORE = ['./', './index.html', './manifest.json', './cover.jpg', './icon-192.png', './icon-512.png', './village.glb', './layout.json',
+const CACHE = 'amanecer-v3';
+const CORE = ['./', './index.html', './manifest.json', './cover.jpg', './icon-192.png', './icon-512.png', './village.glb', './layout.json', './sky.jpg',
   'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js',
   'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js'];
 self.addEventListener('install', e => {
